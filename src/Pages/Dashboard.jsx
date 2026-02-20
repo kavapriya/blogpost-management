@@ -1,18 +1,17 @@
 import { useEffect, useState } from "react";
-import { FaPlus } from "react-icons/fa";
+import { FaPlus, FaStar } from "react-icons/fa";
 import { MdDelete, MdEdit } from "react-icons/md";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import Navbar from "../Component/Navbar";
+import Navbar from "../component/Navbar";
 import "./Dashboard.css";
-import "./PostDetails.css";
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [favorites, setFavorites] = useState([]);
 
-  // Fetch all posts
   const fetchPosts = async () => {
     try {
       setLoading(true);
@@ -29,9 +28,48 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchPosts();
+
+    const storedFavs =
+      JSON.parse(localStorage.getItem("favorites")) || [];
+    setFavorites(storedFavs.map((item) => item.id));
   }, []);
 
-  // Delete post
+  const toggleFavorite = (post) => {
+    let storedFavs =
+      JSON.parse(localStorage.getItem("favorites")) || [];
+
+    const exists = storedFavs.find(
+      (item) => item.id === post.id
+    );
+
+    if (exists) {
+      storedFavs = storedFavs.filter(
+        (item) => item.id !== post.id
+      );
+      toast.info("Removed from favorites");
+    } else {
+      storedFavs.push(post);
+      toast.success("Added to favorites");
+    }
+
+    localStorage.setItem(
+      "favorites",
+      JSON.stringify(storedFavs)
+    );
+
+    setFavorites(storedFavs.map((item) => item.id));
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("loginData");
+    toast.success("Logged out successfully");
+    navigate("/login");
+  };
+
+  const handleCreatePost = () => {
+    navigate("/create-post");
+  };
+
   const handleDeletePost = async (id) => {
     try {
       const response = await fetch(
@@ -43,7 +81,10 @@ const Dashboard = () => {
         throw new Error(`Status: ${response.status}`);
       }
 
-      setPosts((prev) => prev.filter((post) => post.id !== id));
+      setPosts((prevPosts) =>
+        prevPosts.filter((post) => post.id !== id)
+      );
+
       toast.success("Post deleted successfully");
     } catch (error) {
       console.error("Delete Error:", error);
@@ -51,58 +92,63 @@ const Dashboard = () => {
     }
   };
 
-  const handleCreatePost = () => {
-    navigate("/create-post");
-  };
-
-  // Get logged in user
-  const loginData = JSON.parse(localStorage.getItem("loginData") || "{}");
+  const loginData =
+    JSON.parse(localStorage.getItem("loginData")) || {};
   const currentUser = loginData?.username || "User";
 
-  // Stats
   const totalPosts = posts.length;
   const userPosts = posts.filter(
     (post) =>
-      post.author?.toLowerCase() === currentUser.toLowerCase()
+      post.author?.toLowerCase() ===
+      currentUser.toLowerCase()
   ).length;
   const communityPosts = totalPosts - userPosts;
 
   return (
     <div className="dashboard-page">
-      <Navbar />
+      <Navbar onLogout={handleLogout} />
 
       <main className="dashboard-main">
         <div className="dashboard-welcome">
-          <div className="welcome-text">
-            <h1>Welcome to Your Dashboard, {currentUser}!</h1>
-            <p>
-              Manage your posts and connect with your audience.
-            </p>
-          </div>
+          <h1>
+            Welcome to Your Dashboard, {currentUser}!
+          </h1>
+          <p>
+            Manage your posts, track engagement, and
+            connect with your audience.
+          </p>
         </div>
 
         {/* Stats */}
         <div className="dashboard-stats-overview">
           <div className="dash-card">
             <h3>Total Posts</h3>
-            <span className="dash-number">{totalPosts}</span>
+            <span className="dash-number">
+              {totalPosts}
+            </span>
           </div>
 
           <div className="dash-card">
             <h3>Your Stories</h3>
-            <span className="dash-number">{userPosts}</span>
+            <span className="dash-number">
+              {userPosts}
+            </span>
           </div>
 
           <div className="dash-card">
             <h3>Community Posts</h3>
-            <span className="dash-number">{communityPosts}</span>
+            <span className="dash-number">
+              {communityPosts}
+            </span>
           </div>
         </div>
 
-        {/* Posts Section */}
+        {/* Posts */}
         <section className="posts-section">
           <div className="section-header">
-            <h2 className="section-title">Recent Feed</h2>
+            <h2 className="section-title">
+              Recent Feed
+            </h2>
             <button
               className="create-shortcut-btn"
               onClick={handleCreatePost}
@@ -118,7 +164,10 @@ const Dashboard = () => {
               </div>
             ) : posts.length > 0 ? (
               posts.map((post) => (
-                <div className="post-card" key={post.id}>
+                <div
+                  className="post-card"
+                  key={post.id}
+                >
                   <div className="post-image-container">
                     <img
                       src={
@@ -129,14 +178,31 @@ const Dashboard = () => {
                       className="post-card-image"
                     />
 
+                    {/* Favorite Button */}
+                    <button
+                      className={`favorite-btn ${
+                        favorites.includes(post.id)
+                          ? "active"
+                          : ""
+                      }`}
+                      onClick={() =>
+                        toggleFavorite(post)
+                      }
+                    >
+                      <FaStar size={20} />
+                    </button>
+
+                    {/* Edit & Delete */}
                     <div className="post-actions">
                       <button
                         className="action-btn edit-btn"
                         onClick={() =>
-                          navigate(`/create-post/${post.id}`)
+                          navigate(
+                            `/create-post/${post.id}`
+                          )
                         }
                       >
-                        <MdEdit size={22} color="#ffffff" />
+                        <MdEdit size={20} />
                       </button>
 
                       <button
@@ -145,36 +211,28 @@ const Dashboard = () => {
                           handleDeletePost(post.id)
                         }
                       >
-                        <MdDelete size={20} color="#ffffff" />
+                        <MdDelete size={20} />
                       </button>
                     </div>
                   </div>
 
                   <div className="post-card-content">
-                    <div className="post-meta">
-                      <span>
-                        By {post.author || "Anonymous"}
-                      </span>
-                      <span>
-                        {new Date(
-                          post.createdAt || Date.now()
-                        ).toLocaleDateString()}
-                      </span>
-                    </div>
-
                     <h3 className="post-card-title">
                       {post.title}
                     </h3>
 
                     <p className="post-card-description">
-                      {post.description}
+                      {post.description ||
+                        post.content ||
+                        post.excerpt}
                     </p>
 
-                    {/* ✅ FIXED ROUTE */}
                     <button
                       className="read-more-btn"
                       onClick={() =>
-                        navigate(`/post/${post.id}`)
+                        navigate(
+                          `/PostDetails/${post.id}`
+                        )
                       }
                     >
                       Read More
@@ -184,7 +242,10 @@ const Dashboard = () => {
               ))
             ) : (
               <div className="no-posts">
-                No posts yet. Create your first post!
+                <p>
+                  No posts yet. Be the first to create
+                  a post!
+                </p>
               </div>
             )}
           </div>
